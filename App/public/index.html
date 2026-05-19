@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>Amérique du Sud Quiz</title>
+<title>Amérique du Nord Quiz</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <style>
@@ -21,6 +21,9 @@ html,body{height:100%;overflow:hidden;background:var(--bg);font-family:Georgia,s
 .hdr-btns{display:flex;gap:5px;align-items:center}
 .hdr-btn{font-size:10px;color:var(--muted);background:none;border:1px solid var(--border);border-radius:10px;padding:4px 7px;cursor:pointer;font-family:Georgia,serif}
 .lang-btn{font-size:16px;background:none;border:none;cursor:pointer;padding:2px}
+.tab-bar{display:flex;background:var(--card);border-bottom:1px solid var(--border);flex-shrink:0}
+.tb{flex:1;padding:5px 2px;text-align:center;font-size:9px;color:var(--muted);border:none;border-bottom:2px solid transparent;line-height:1.4;background:none;cursor:pointer;font-family:Georgia,serif}
+.tb.active{color:var(--gold);border-bottom-color:var(--gold);font-weight:bold}
 .phase-bar{display:flex;background:var(--card);border-bottom:1px solid var(--border);flex-shrink:0}
 .ps{flex:1;padding:7px 4px;text-align:center;font-size:10px;color:var(--muted);border:none;border-bottom:2px solid transparent;line-height:1.4;background:none;cursor:pointer;font-family:Georgia,serif}
 .ps.active{color:var(--gold);border-bottom-color:var(--gold);font-weight:bold}
@@ -50,9 +53,9 @@ html,body{height:100%;overflow:hidden;background:var(--bg);font-family:Georgia,s
 <body>
 <div id="app">
   <div class="header">
-    <div><div class="hdr-title">🌎 Amérique du Sud Quiz</div><div class="hdr-sub" id="hdr-sub">Pays</div></div>
+    <div><div class="hdr-title" id="hdr-title">🇺🇸 États-Unis Quiz</div><div class="hdr-sub" id="hdr-sub">États</div></div>
     <div class="score-wrap">
-      <div class="sbox"><div class="snum" id="sc1" style="color:var(--green)">0✓ 0✗</div><div class="slbl" id="lb1">Pays</div></div>
+      <div class="sbox"><div class="snum" id="sc1" style="color:var(--green)">0✓ 0✗</div><div class="slbl" id="lb1">États/Prov.</div></div>
       <div class="sbox"><div class="snum" id="sc2" style="color:var(--gold2)">0✓ 0✗</div><div class="slbl" id="lb2">Capitales</div></div>
       <div class="sbox"><div class="snum" id="sc3" style="color:#4d908e">0✓ 0✗</div><div class="slbl" id="lb3">Drapeaux</div></div>
     </div>
@@ -62,8 +65,13 @@ html,body{height:100%;overflow:hidden;background:var(--bg);font-family:Georgia,s
       <button class="lang-btn" onclick="showSettings()">📱</button>
     </div>
   </div>
+  <!-- Sélecteur pays -->
+  <div class="tab-bar">
+    <button class="tb active" id="tb-us" onclick="switchCountry('us')">🇺🇸<br>États-Unis</button>
+    <button class="tb" id="tb-ca" onclick="switchCountry('ca')">🇨🇦<br>Canada</button>
+  </div>
   <div class="phase-bar">
-    <button class="ps active" id="ps1" onclick="jumpToPhase(1)">🗺<br><span id="ps1l">Pays</span></button>
+    <button class="ps active" id="ps1" onclick="jumpToPhase(1)">🗺<br><span id="ps1l">États</span></button>
     <button class="ps" id="ps2" onclick="jumpToPhase(2)">🏛<br><span id="ps2l">Capitales</span></button>
     <button class="ps" id="ps3" onclick="jumpToPhase(3)">🏴<br><span id="ps3l">Drapeaux</span></button>
   </div>
@@ -71,54 +79,132 @@ html,body{height:100%;overflow:hidden;background:var(--bg);font-family:Georgia,s
   <div class="q-banner"><div class="q-text" id="q-text">Chargement…</div></div>
   <div class="map-wrap">
     <div id="map"></div>
-    <div class="load-ov" id="load-ov"><div class="spinner"></div><div class="load-txt">Chargement…</div></div>
+    <div class="load-ov" id="load-ov"><div class="spinner"></div><div class="load-txt" id="load-txt">Chargement…</div></div>
   </div>
   <div class="fb-bar hint" id="fb-bar">Tapez sur la bonne zone</div>
 </div>
 <script>
-// ===== DONNÉES 27 PAYS UE =====
-const PAYS = [
-  {code:'AR', fr:'Argentine',  en:'Argentina',  cap_fr:'Buenos Aires', cap_en:'Buenos Aires', flag:'🇦🇷', lat:-34.60, lng:-63.62},
-  {code:'BO', fr:'Bolivie',    en:'Bolivia',    cap_fr:'Sucre',        cap_en:'Sucre',        flag:'🇧🇴', lat:-16.29, lng:-63.59},
-  {code:'BR', fr:'Bresil',     en:'Brazil',     cap_fr:'Brasilia',     cap_en:'Brasilia',     flag:'🇧🇷', lat:-14.24, lng:-51.93},
-  {code:'CL', fr:'Chili',      en:'Chile',      cap_fr:'Santiago',     cap_en:'Santiago',     flag:'🇨🇱', lat:-35.68, lng:-71.54},
-  {code:'CO', fr:'Colombie',   en:'Colombia',   cap_fr:'Bogota',       cap_en:'Bogota',       flag:'🇨🇴', lat:4.57,   lng:-74.30},
-  {code:'EC', fr:'Equateur',   en:'Ecuador',    cap_fr:'Quito',        cap_en:'Quito',        flag:'🇪🇨', lat:-1.83,  lng:-78.18},
-  {code:'GY', fr:'Guyana',     en:'Guyana',     cap_fr:'Georgetown',   cap_en:'Georgetown',   flag:'🇬🇾', lat:4.86,   lng:-58.93},
-  {code:'PY', fr:'Paraguay',   en:'Paraguay',   cap_fr:'Asuncion',     cap_en:'Asuncion',     flag:'🇵🇾', lat:-23.44, lng:-58.44},
-  {code:'PE', fr:'Perou',      en:'Peru',       cap_fr:'Lima',         cap_en:'Lima',         flag:'🇵🇪', lat:-9.19,  lng:-75.02},
-  {code:'SR', fr:'Suriname',   en:'Suriname',   cap_fr:'Paramaribo',   cap_en:'Paramaribo',   flag:'🇸🇷', lat:3.92,   lng:-56.03},
-  {code:'UY', fr:'Uruguay',    en:'Uruguay',    cap_fr:'Montevideo',   cap_en:'Montevideo',   flag:'🇺🇾', lat:-32.52, lng:-55.77},
-  {code:'VE', fr:'Venezuela',  en:'Venezuela',  cap_fr:'Caracas',      cap_en:'Caracas',      flag:'🇻🇪', lat:6.42,   lng:-66.59},
+// ===== DONNÉES 50 ÉTATS USA =====
+const PAYS_US = [
+  {code:'AL',fr:'Alabama',        en:'Alabama',         cap_fr:'Montgomery',   cap_en:'Montgomery',   flag:'🏛',lat:32.80,lng:-86.79},
+  {code:'AK',fr:'Alaska',         en:'Alaska',           cap_fr:'Juneau',       cap_en:'Juneau',       flag:'❄️',lat:64.20,lng:-153.00},
+  {code:'AZ',fr:'Arizona',        en:'Arizona',          cap_fr:'Phoenix',      cap_en:'Phoenix',      flag:'🌵',lat:34.05,lng:-111.09},
+  {code:'AR',fr:'Arkansas',       en:'Arkansas',         cap_fr:'Little Rock',  cap_en:'Little Rock',  flag:'⭐',lat:34.80,lng:-92.20},
+  {code:'CA',fr:'Californie',     en:'California',       cap_fr:'Sacramento',   cap_en:'Sacramento',   flag:'🐻',lat:36.78,lng:-119.42},
+  {code:'CO',fr:'Colorado',       en:'Colorado',         cap_fr:'Denver',       cap_en:'Denver',       flag:'🏔',lat:39.55,lng:-105.78},
+  {code:'CT',fr:'Connecticut',    en:'Connecticut',      cap_fr:'Hartford',     cap_en:'Hartford',     flag:'🌿',lat:41.60,lng:-72.69},
+  {code:'DE',fr:'Delaware',       en:'Delaware',         cap_fr:'Dover',        cap_en:'Dover',        flag:'💎',lat:38.91,lng:-75.53},
+  {code:'FL',fr:'Floride',        en:'Florida',          cap_fr:'Tallahassee',  cap_en:'Tallahassee',  flag:'🌴',lat:27.99,lng:-81.76},
+  {code:'GA',fr:'Géorgie',        en:'Georgia',          cap_fr:'Atlanta',      cap_en:'Atlanta',      flag:'🍑',lat:32.16,lng:-82.90},
+  {code:'HI',fr:'Hawaï',          en:'Hawaii',           cap_fr:'Honolulu',     cap_en:'Honolulu',     flag:'🌺',lat:19.90,lng:-155.58},
+  {code:'ID',fr:'Idaho',          en:'Idaho',            cap_fr:'Boise',        cap_en:'Boise',        flag:'🥔',lat:44.07,lng:-114.74},
+  {code:'IL',fr:'Illinois',       en:'Illinois',         cap_fr:'Springfield',  cap_en:'Springfield',  flag:'🌽',lat:40.63,lng:-89.40},
+  {code:'IN',fr:'Indiana',        en:'Indiana',          cap_fr:'Indianapolis', cap_en:'Indianapolis', flag:'🏎',lat:40.27,lng:-86.13},
+  {code:'IA',fr:'Iowa',           en:'Iowa',             cap_fr:'Des Moines',   cap_en:'Des Moines',   flag:'🌾',lat:42.03,lng:-93.58},
+  {code:'KS',fr:'Kansas',         en:'Kansas',           cap_fr:'Topeka',       cap_en:'Topeka',       flag:'🌻',lat:38.53,lng:-96.73},
+  {code:'KY',fr:'Kentucky',       en:'Kentucky',         cap_fr:'Frankfort',    cap_en:'Frankfort',    flag:'🐎',lat:37.67,lng:-84.67},
+  {code:'LA',fr:'Louisiane',      en:'Louisiana',        cap_fr:'Baton Rouge',  cap_en:'Baton Rouge',  flag:'🎷',lat:30.98,lng:-91.96},
+  {code:'ME',fr:'Maine',          en:'Maine',            cap_fr:'Augusta',      cap_en:'Augusta',      flag:'🦞',lat:45.25,lng:-69.45},
+  {code:'MD',fr:'Maryland',       en:'Maryland',         cap_fr:'Annapolis',    cap_en:'Annapolis',    flag:'⛵',lat:39.05,lng:-76.64},
+  {code:'MA',fr:'Massachusetts',  en:'Massachusetts',    cap_fr:'Boston',       cap_en:'Boston',       flag:'🦃',lat:42.23,lng:-71.53},
+  {code:'MI',fr:'Michigan',       en:'Michigan',         cap_fr:'Lansing',      cap_en:'Lansing',      flag:'🚗',lat:44.18,lng:-84.51},
+  {code:'MN',fr:'Minnesota',      en:'Minnesota',        cap_fr:'Saint Paul',   cap_en:'Saint Paul',   flag:'🌲',lat:46.73,lng:-94.68},
+  {code:'MS',fr:'Mississippi',    en:'Mississippi',      cap_fr:'Jackson',      cap_en:'Jackson',      flag:'🎸',lat:32.74,lng:-89.68},
+  {code:'MO',fr:'Missouri',       en:'Missouri',         cap_fr:'Jefferson City',cap_en:'Jefferson City',flag:'🌉',lat:38.46,lng:-92.29},
+  {code:'MT',fr:'Montana',        en:'Montana',          cap_fr:'Helena',       cap_en:'Helena',       flag:'🦬',lat:46.88,lng:-110.36},
+  {code:'NE',fr:'Nebraska',       en:'Nebraska',         cap_fr:'Lincoln',      cap_en:'Lincoln',      flag:'🌽',lat:41.49,lng:-99.90},
+  {code:'NV',fr:'Nevada',         en:'Nevada',           cap_fr:'Carson City',  cap_en:'Carson City',  flag:'🎰',lat:38.31,lng:-117.06},
+  {code:'NH',fr:'New Hampshire',  en:'New Hampshire',    cap_fr:'Concord',      cap_en:'Concord',      flag:'🍁',lat:43.45,lng:-71.56},
+  {code:'NJ',fr:'New Jersey',     en:'New Jersey',       cap_fr:'Trenton',      cap_en:'Trenton',      flag:'🗽',lat:40.30,lng:-74.52},
+  {code:'NM',fr:'Nouveau-Mexique',en:'New Mexico',       cap_fr:'Santa Fe',     cap_en:'Santa Fe',     flag:'☀️',lat:34.84,lng:-106.25},
+  {code:'NY',fr:'New York',       en:'New York',         cap_fr:'Albany',       cap_en:'Albany',       flag:'🗽',lat:42.16,lng:-74.95},
+  {code:'NC',fr:'Caroline du Nord',en:'North Carolina',  cap_fr:'Raleigh',      cap_en:'Raleigh',      flag:'🐷',lat:35.63,lng:-79.81},
+  {code:'ND',fr:'Dakota du Nord', en:'North Dakota',     cap_fr:'Bismarck',     cap_en:'Bismarck',     flag:'🌾',lat:47.53,lng:-101.00},
+  {code:'OH',fr:'Ohio',           en:'Ohio',             cap_fr:'Columbus',     cap_en:'Columbus',     flag:'🌰',lat:40.42,lng:-82.91},
+  {code:'OK',fr:'Oklahoma',       en:'Oklahoma',         cap_fr:'Oklahoma City',cap_en:'Oklahoma City',flag:'🌪',lat:35.47,lng:-97.52},
+  {code:'OR',fr:'Oregon',         en:'Oregon',           cap_fr:'Salem',        cap_en:'Salem',        flag:'🌲',lat:44.57,lng:-122.07},
+  {code:'PA',fr:'Pennsylvanie',   en:'Pennsylvania',     cap_fr:'Harrisburg',   cap_en:'Harrisburg',   flag:'🔔',lat:40.59,lng:-77.21},
+  {code:'RI',fr:'Rhode Island',   en:'Rhode Island',     cap_fr:'Providence',   cap_en:'Providence',   flag:'⚓',lat:41.68,lng:-71.51},
+  {code:'SC',fr:'Caroline du Sud',en:'South Carolina',  cap_fr:'Columbia',     cap_en:'Columbia',     flag:'🌙',lat:33.84,lng:-80.94},
+  {code:'SD',fr:'Dakota du Sud',  en:'South Dakota',     cap_fr:'Pierre',       cap_en:'Pierre',       flag:'🦅',lat:44.30,lng:-100.23},
+  {code:'TN',fr:'Tennessee',      en:'Tennessee',        cap_fr:'Nashville',    cap_en:'Nashville',    flag:'🎵',lat:35.75,lng:-86.69},
+  {code:'TX',fr:'Texas',          en:'Texas',            cap_fr:'Austin',       cap_en:'Austin',       flag:'⭐',lat:31.05,lng:-97.56},
+  {code:'UT',fr:'Utah',           en:'Utah',             cap_fr:'Salt Lake City',cap_en:'Salt Lake City',flag:'⛪',lat:39.32,lng:-111.09},
+  {code:'VT',fr:'Vermont',        en:'Vermont',          cap_fr:'Montpelier',   cap_en:'Montpelier',   flag:'🍁',lat:44.27,lng:-72.66},
+  {code:'VA',fr:'Virginie',       en:'Virginia',         cap_fr:'Richmond',     cap_en:'Richmond',     flag:'🏛',lat:37.43,lng:-78.66},
+  {code:'WA',fr:'Washington',     en:'Washington',       cap_fr:'Olympia',      cap_en:'Olympia',      flag:'🌲',lat:47.75,lng:-120.74},
+  {code:'WV',fr:'Virginie-Occ.',  en:'West Virginia',    cap_fr:'Charleston',   cap_en:'Charleston',   flag:'⛰',lat:38.49,lng:-80.95},
+  {code:'WI',fr:'Wisconsin',      en:'Wisconsin',        cap_fr:'Madison',      cap_en:'Madison',      flag:'🧀',lat:43.78,lng:-88.79},
+  {code:'WY',fr:'Wyoming',        en:'Wyoming',          cap_fr:'Cheyenne',     cap_en:'Cheyenne',     flag:'🤠',lat:43.08,lng:-107.29},
 ];
 
-// Couleurs par pays
-const COLORS = {
-  AR:'#e63946',BO:'#457b9d',BR:'#f4a261',CL:'#2a9d8f',CO:'#e9c46a',
-  EC:'#9b5de5',GY:'#ff595e',PY:'#8ac926',PE:'#4d908e',SR:'#1982c4',
-  UY:'#d4a017',VE:'#6bcb77',
+// ===== DONNÉES 13 PROVINCES/TERRITOIRES CANADA =====
+const PAYS_CA = [
+  {code:'AB', fr:'Alberta',              en:'Alberta',               cap_fr:'Edmonton',        cap_en:'Edmonton',        flag:'🌾', lat:53.93, lng:-116.58},
+  {code:'BC', fr:'Colombie-Britannique', en:'British Columbia',      cap_fr:'Victoria',        cap_en:'Victoria',        flag:'🌲', lat:53.73, lng:-127.65},
+  {code:'MB', fr:'Manitoba',             en:'Manitoba',              cap_fr:'Winnipeg',        cap_en:'Winnipeg',        flag:'🦬', lat:53.76, lng:-98.81},
+  {code:'NB', fr:'Nouveau-Brunswick',    en:'New Brunswick',         cap_fr:'Fredericton',     cap_en:'Fredericton',     flag:'⛵', lat:46.56, lng:-66.46},
+  {code:'NL', fr:'Terre-Neuve-Lab.',     en:'Newfoundland & Lab.',   cap_fr:'St. John\'s',     cap_en:'St. John\'s',     flag:'🐟', lat:53.13, lng:-59.00},
+  {code:'NS', fr:'Nouvelle-Écosse',      en:'Nova Scotia',           cap_fr:'Halifax',         cap_en:'Halifax',         flag:'🦞', lat:44.68, lng:-63.74},
+  {code:'NT', fr:'Territoires du N.-O.', en:'Northwest Territories', cap_fr:'Yellowknife',     cap_en:'Yellowknife',     flag:'❄️', lat:64.82, lng:-124.85},
+  {code:'NU', fr:'Nunavut',              en:'Nunavut',               cap_fr:'Iqaluit',         cap_en:'Iqaluit',         flag:'🐻‍❄️', lat:70.30, lng:-86.55},
+  {code:'ON', fr:'Ontario',              en:'Ontario',               cap_fr:'Toronto',         cap_en:'Toronto',         flag:'🍁', lat:51.25, lng:-85.32},
+  {code:'PE', fr:'Île-du-Prince-Édouard',en:'Prince Edward Island',  cap_fr:'Charlottetown',   cap_en:'Charlottetown',   flag:'🦞', lat:46.51, lng:-63.42},
+  {code:'QC', fr:'Québec',               en:'Quebec',                cap_fr:'Québec',          cap_en:'Quebec City',     flag:'⚜️', lat:52.94, lng:-73.55},
+  {code:'SK', fr:'Saskatchewan',         en:'Saskatchewan',          cap_fr:'Regina',          cap_en:'Regina',          flag:'🌻', lat:52.94, lng:-106.45},
+  {code:'YT', fr:'Yukon',                en:'Yukon',                 cap_fr:'Whitehorse',      cap_en:'Whitehorse',      flag:'🐺', lat:63.00, lng:-135.00},
+];
+
+// Couleurs États USA
+const COLORS_US = {
+  AL:'#e63946',AK:'#457b9d',AZ:'#f4a261',AR:'#2a9d8f',CA:'#e9c46a',CO:'#9b5de5',
+  CT:'#e63946',DE:'#457b9d',FL:'#f4a261',GA:'#2a9d8f',HI:'#e9c46a',ID:'#9b5de5',
+  IL:'#ff595e',IN:'#8ac926',IA:'#4d908e',KS:'#1982c4',KY:'#d4a017',LA:'#6bcb77',
+  ME:'#e63946',MD:'#457b9d',MA:'#f4a261',MI:'#2a9d8f',MN:'#e9c46a',MS:'#9b5de5',
+  MO:'#ff595e',MT:'#8ac926',NE:'#4d908e',NV:'#1982c4',NH:'#d4a017',NJ:'#6bcb77',
+  NM:'#e63946',NY:'#457b9d',NC:'#f4a261',ND:'#2a9d8f',OH:'#e9c46a',OK:'#9b5de5',
+  OR:'#ff595e',PA:'#8ac926',RI:'#4d908e',SC:'#1982c4',SD:'#d4a017',TN:'#6bcb77',
+  TX:'#e63946',UT:'#457b9d',VT:'#f4a261',VA:'#2a9d8f',WA:'#e9c46a',WV:'#9b5de5',
+  WI:'#ff595e',WY:'#8ac926',
+};
+
+// Couleurs Provinces Canada
+const COLORS_CA = {
+  AB:'#e63946',BC:'#457b9d',MB:'#f4a261',NB:'#2a9d8f',NL:'#e9c46a',NS:'#9b5de5',
+  NT:'#ff595e',NU:'#8ac926',ON:'#4d908e',PE:'#1982c4',QC:'#d4a017',SK:'#6bcb77',YT:'#e76f51',
+};
+
+// GeoJSON sources
+const GEO_URL = {
+  us: 'https://raw.githubusercontent.com/PublicaMundi/MappingAPI/master/data/geojson/us-states.json',
+  ca: 'https://raw.githubusercontent.com/codeforamerica/click_that_hood/master/public/data/canada.geojson',
 };
 
 // ===== STATE =====
-let map, geoData, gLayer=null, markers=[];
+let map, geoData={us:null,ca:null}, gLayer=null, markers=[];
+let country='us'; // 'us' ou 'ca'
 let phase=1, cur=null, answered=false, lang='fr';
 let scores={1:{ok:0,ko:0},2:{ok:0,ko:0},3:{ok:0,ko:0}};
 let used=[], found=new Set();
 let _touchSX=0, _touchSY=0, _geoClickFn=null;
 
+function PAYS(){ return country==='us'?PAYS_US:PAYS_CA; }
+function COLORS(){ return country==='us'?COLORS_US:COLORS_CA; }
+
 const T = {
-  pays:     {fr:'Pays',       en:'Countries'},
-  capitales:{fr:'Capitales',  en:'Capitals'},
-  drapeaux: {fr:'Drapeaux',   en:'Flags'},
-  tapPays:  {fr:'Tapez sur le bon pays',      en:'Tap the right country'},
-  tapCap:   {fr:'Tapez sur la bonne capitale',en:'Tap the right capital'},
-  tapFlag:  {fr:'Tapez sur le bon drapeau',   en:'Tap the right flag'},
-  ouPays:   {fr:'Où se trouve',               en:'Where is'},
-  ouCap:    {fr:'Où se trouve la capitale',   en:'Where is the capital'},
-  ouFlag:   {fr:'Quel est le drapeau de',     en:'What is the flag of'},
+  etats:    {fr:'États',        en:'States'},
+  provs:    {fr:'Provinces',    en:'Provinces'},
+  capitales:{fr:'Capitales',    en:'Capitals'},
+  drapeaux: {fr:'Drapeaux',     en:'Emblèmes'},
+  tapPays:  {fr:'Tapez sur le bon état/province',en:'Tap the right state/province'},
+  tapCap:   {fr:'Tapez sur la bonne capitale',   en:'Tap the right capital'},
+  tapFlag:  {fr:'Tapez sur le bon emblème',       en:'Tap the right emblem'},
+  ouPays:   {fr:'Où se trouve',                  en:'Where is'},
+  ouCap:    {fr:'Où se trouve la capitale',       en:'Where is the capital'},
+  ouFlag:   {fr:'Quel est l\'emblème de',         en:'What is the emblem of'},
 };
 const t=k=>T[k][lang];
-const pInfo=code=>PAYS.find(p=>p.code===code);
+const pInfo=code=>PAYS().find(p=>p.code===code);
 const pName=p=>p[lang==='fr'?'fr':'en'];
 const pCap=p=>p[lang==='fr'?'cap_fr':'cap_en'];
 
@@ -126,40 +212,108 @@ const pCap=p=>p[lang==='fr'?'cap_fr':'cap_en'];
 async function init(){
   map=L.map('map',{zoomControl:false,dragging:true,scrollWheelZoom:false,doubleClickZoom:false,touchZoom:true,tap:true,tapTolerance:15});
   L.tileLayer('https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png',{attribution:'© OpenStreetMap © CARTO',maxZoom:13}).addTo(map);
-  map.setView([-15,-60],3);
+  map.setView([39,-98],4);
   initTouch();
+  await loadGeo('us');
+  document.getElementById('load-ov').style.display='none';
+  jumpToPhase(1);
+}
+
+async function loadGeo(c){
+  if(geoData[c])return true;
+  document.getElementById('load-ov').style.display='flex';
+  document.getElementById('load-txt').textContent='Chargement…';
   try{
-    const r=await fetch('https://raw.githubusercontent.com/datasets/geo-countries/master/data/countries.geojson');
+    const r=await fetch(GEO_URL[c]);
     if(!r.ok)throw new Error();
     const raw=await r.json();
-    // Filtrer les 27 pays UE par code ISO
-    const codes=new Set(PAYS.map(p=>p.code));
-    raw.features=raw.features.filter(f=>{
-      const iso=f.properties.ISO_A2||f.properties.iso_a2||'';
-      return codes.has(iso.toUpperCase());
-    });
-    // Normaliser le code
-    raw.features.forEach(f=>{
-      f.properties.code=(f.properties.ISO_A2||f.properties.iso_a2||'').toUpperCase();
-    });
-    geoData=raw;
+    if(c==='us'){
+      // US: filtrer 50 états, code = propriété 'postal' ou déduire du nom
+      const codes=new Set(PAYS_US.map(p=>p.code));
+      raw.features=raw.features.filter(f=>{
+        const name=f.properties.name||'';
+        const postal=f.properties.postal||getUSPostal(name);
+        return codes.has(postal);
+      });
+      raw.features.forEach(f=>{
+        if(!f.properties.postal)f.properties.postal=getUSPostal(f.properties.name||'');
+        f.properties.code=f.properties.postal;
+      });
+    } else {
+      // Canada: normaliser les codes province
+      const codes=new Set(PAYS_CA.map(p=>p.code));
+      raw.features=raw.features.filter(f=>{
+        const name=f.properties.name||f.properties.NAME||'';
+        const code=getCACode(name);
+        return code&&codes.has(code);
+      });
+      raw.features.forEach(f=>{
+        const name=f.properties.name||f.properties.NAME||'';
+        f.properties.code=getCACode(name)||name;
+      });
+    }
+    geoData[c]=raw;
     document.getElementById('load-ov').style.display='none';
-    jumpToPhase(1);
+    return true;
   }catch(e){
     document.getElementById('load-ov').innerHTML='<div style="color:#ef4444;text-align:center;padding:32px">Erreur de chargement.<br>Vérifiez votre connexion.</div>';
+    return false;
   }
+}
+
+// Map nom complet -> code postal US
+const US_NAME_MAP={
+  'Alabama':'AL','Alaska':'AK','Arizona':'AZ','Arkansas':'AR','California':'CA',
+  'Colorado':'CO','Connecticut':'CT','Delaware':'DE','Florida':'FL','Georgia':'GA',
+  'Hawaii':'HI','Idaho':'ID','Illinois':'IL','Indiana':'IN','Iowa':'IA',
+  'Kansas':'KS','Kentucky':'KY','Louisiana':'LA','Maine':'ME','Maryland':'MD',
+  'Massachusetts':'MA','Michigan':'MI','Minnesota':'MN','Mississippi':'MS',
+  'Missouri':'MO','Montana':'MT','Nebraska':'NE','Nevada':'NV','New Hampshire':'NH',
+  'New Jersey':'NJ','New Mexico':'NM','New York':'NY','North Carolina':'NC',
+  'North Dakota':'ND','Ohio':'OH','Oklahoma':'OK','Oregon':'OR','Pennsylvania':'PA',
+  'Rhode Island':'RI','South Carolina':'SC','South Dakota':'SD','Tennessee':'TN',
+  'Texas':'TX','Utah':'UT','Vermont':'VT','Virginia':'VA','Washington':'WA',
+  'West Virginia':'WV','Wisconsin':'WI','Wyoming':'WY',
+};
+function getUSPostal(name){return US_NAME_MAP[name]||'';}
+
+const CA_NAME_MAP={
+  'Alberta':'AB','British Columbia':'BC','Manitoba':'MB','New Brunswick':'NB',
+  'Newfoundland and Labrador':'NL','Newfoundland':'NL','Nova Scotia':'NS',
+  'Northwest Territories':'NT','Nunavut':'NU','Ontario':'ON',
+  'Prince Edward Island':'PE','Quebec':'QC','Québec':'QC',
+  'Saskatchewan':'SK','Yukon':'YT','Yukon Territory':'YT',
+};
+function getCACode(name){return CA_NAME_MAP[name]||'';}
+
+// ===== SWITCH COUNTRY =====
+async function switchCountry(c){
+  if(country===c)return;
+  country=c;
+  scores={1:{ok:0,ko:0},2:{ok:0,ko:0},3:{ok:0,ko:0}};
+  ['1','2','3'].forEach(n=>document.getElementById('sc'+n).textContent='0✓ 0✗');
+  document.getElementById('tb-us').classList.toggle('active',c==='us');
+  document.getElementById('tb-ca').classList.toggle('active',c==='ca');
+  document.getElementById('hdr-title').textContent=c==='us'?'🇺🇸 États-Unis Quiz':'🇨🇦 Canada Quiz';
+  if(gLayer){gLayer.remove();gLayer=null;}
+  clearMarkers();
+  const ok=await loadGeo(c);
+  if(!ok)return;
+  fitMap();
+  jumpToPhase(phase);
 }
 
 // ===== TOUCH =====
 function initTouch(){
   const c=map.getContainer();
-  c.addEventListener('touchstart',e=>{if(e.touches.length){_touchSX=e.touches[0].clientX;_touchSY=e.touches[0].clientY;}},{passive:true});
+  c.addEventListener('touchstart',e=>{if(e.touches.length){_touchSX=e.touches[0].clientX;_touchSY=e.touches[0].clientY;}}
+  ,{passive:true});
   c.addEventListener('touchend',e=>{
     if(!e.changedTouches.length)return;
-    const t=e.changedTouches[0];
-    if(Math.abs(t.clientX-_touchSX)>10||Math.abs(t.clientY-_touchSY)>10)return;
+    const tt=e.changedTouches[0];
+    if(Math.abs(tt.clientX-_touchSX)>10||Math.abs(tt.clientY-_touchSY)>10)return;
     const rect=c.getBoundingClientRect();
-    const ll=map.containerPointToLatLng([t.clientX-rect.left,t.clientY-rect.top]);
+    const ll=map.containerPointToLatLng([tt.clientX-rect.left,tt.clientY-rect.top]);
     if(!gLayer||!_geoClickFn)return;
     let hit=false;
     gLayer.eachLayer(l=>{
@@ -186,13 +340,14 @@ function ptInRing(pt,ring){
 function buildLayer(clickFn){
   if(gLayer){gLayer.remove();gLayer=null;}
   _geoClickFn=clickFn;
-  gLayer=L.geoJSON(geoData,{
+  const col=COLORS();
+  gLayer=L.geoJSON(geoData[country],{
     style:f=>styleFor(f.properties.code),
     onEachFeature:(f,l)=>l.on('click',e=>{L.DomEvent.stop(e);clickFn(f.properties.code);})
   }).addTo(map);
 }
 function styleFor(code){
-  const col=COLORS[code]||'#888';
+  const col=COLORS()[code]||'#888';
   const f=found.has(code);
   return{fillColor:col,fillOpacity:f?.55:.38,color:'#fff',weight:f?2:1.5,opacity:.6};
 }
@@ -200,27 +355,32 @@ function setS(code,s){gLayer&&gLayer.eachLayer(l=>{if(l.feature.properties.code=
 const sOK={fillColor:'#22c55e',fillOpacity:.82,color:'#86efac',weight:3,opacity:1};
 const sKO={fillColor:'#ef4444',fillOpacity:.72,color:'#fca5a5',weight:3,opacity:1};
 
+// ===== FIT MAP =====
+function fitMap(){
+  if(country==='us') map.setView([39,-98],4);
+  else map.setView([62,-96],4);
+}
+
 // ===== PHASE =====
 function jumpToPhase(p){
   phase=p; used=[]; found=new Set(); answered=false; clearMarkers();
   [1,2,3].forEach(n=>document.getElementById('ps'+n).classList.remove('active'));
   document.getElementById('ps'+p).classList.add('active');
   updateLangUI();
+  if(!geoData[country])return;
   if(p===1){
     buildLayer(clickPays);
   } else if(p===2){
-    buildLayer(()=>{}); // layer décoratif, clics sur marqueurs
+    buildLayer(()=>{});
     buildCapMarkers();
   } else {
     buildLayer(()=>{});
     buildFlagMarkers();
   }
-  fitEurope();
+  fitMap();
   document.getElementById('prog').style.width='0%';
   nextQ();
 }
-
-function fitEurope(){map.setView([-15,-60],3);}
 
 // ===== LANGUE =====
 function toggleLang(){
@@ -230,11 +390,12 @@ function toggleLang(){
   nextQ();
 }
 function updateLangUI(){
-  document.getElementById('hdr-sub').textContent=t(phase===1?'pays':phase===2?'capitales':'drapeaux');
-  document.getElementById('lb1').textContent=t('pays');
+  const unit=country==='us'?t('etats'):t('provs');
+  document.getElementById('hdr-sub').textContent=unit;
+  document.getElementById('lb1').textContent=unit;
   document.getElementById('lb2').textContent=t('capitales');
   document.getElementById('lb3').textContent=t('drapeaux');
-  document.getElementById('ps1l').textContent=t('pays');
+  document.getElementById('ps1l').textContent=unit;
   document.getElementById('ps2l').textContent=t('capitales');
   document.getElementById('ps3l').textContent=t('drapeaux');
 }
@@ -242,9 +403,10 @@ function updateLangUI(){
 // ===== QUESTIONS =====
 function nextQ(){
   answered=false;
-  const total=PAYS.length;
+  const pays=PAYS();
+  const total=pays.length;
   if(used.length>=total){used=[];found=new Set();if(phase>1){clearMarkers();phase===2?buildCapMarkers():buildFlagMarkers();}}
-  const rem=PAYS.filter(p=>!used.includes(p.code));
+  const rem=pays.filter(p=>!used.includes(p.code));
   cur=rem[Math.floor(Math.random()*rem.length)];
   used.push(cur.code);
   document.getElementById('prog').style.width=(used.length/total*100)+'%';
@@ -281,7 +443,7 @@ function clickPays(code){
 // ===== MARQUEURS CAPITALES =====
 function buildCapMarkers(){
   clearMarkers();
-  PAYS.forEach(p=>{
+  PAYS().forEach(p=>{
     const m=L.marker([p.lat,p.lng],{
       icon:L.divIcon({className:'',html:'<div class="pm idle" id="cm-'+p.code+'">🏛</div>',iconSize:[32,32],iconAnchor:[16,16]}),
       interactive:true,bubblingMouseEvents:false,zIndexOffset:500
@@ -310,12 +472,12 @@ function clickCap(code){
   setTimeout(nextQ,1200);
 }
 
-// ===== MARQUEURS DRAPEAUX =====
+// ===== MARQUEURS DRAPEAUX (emblèmes emoji) =====
 function buildFlagMarkers(){
   clearMarkers();
-  PAYS.forEach(p=>{
+  PAYS().forEach(p=>{
     const m=L.marker([p.lat,p.lng],{
-      icon:L.divIcon({className:'',html:'<div class="pm idle" id="fm-'+p.code+'" style="font-size:20px">'+p.flag+'</div>',iconSize:[32,32],iconAnchor:[16,16]}),
+      icon:L.divIcon({className:'',html:'<div class="pm idle" id="fm-'+p.code+'" style="font-size:18px">'+p.flag+'</div>',iconSize:[32,32],iconAnchor:[16,16]}),
       interactive:true,bubblingMouseEvents:false,zIndexOffset:500
     }).addTo(map);
     m.on('click',e=>{L.DomEvent.stop(e);clickFlag(p.code);});
